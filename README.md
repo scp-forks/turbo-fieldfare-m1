@@ -10,6 +10,7 @@
 > | **Use this branch** | [`macos14-support`](../../tree/macos14-support) — the working port |
 > | **Read this doc** | **[`MACOS14.md`](../../blob/macos14-support/MACOS14.md)** — full step-by-step procedure |
 > | Upstream vetting | [`SECURITY-AUDIT.md`](../../blob/macos14-support/SECURITY-AUDIT.md) — malware/supply-chain review of all 345 upstream files |
+> | **Build an API on it** | **[`SERVING.md`](../../blob/macos14-support/SERVING.md)** — it already ships an OpenAI-compatible server; verified parameter support + a working Go front end |
 > | `main` | Deliberately left as pristine upstream, so upstream can be tracked cleanly. **Nothing of ours is on `main`.** |
 > | Upstream | [drumih/turbo-fieldfare](https://github.com/drumih/turbo-fieldfare) |
 >
