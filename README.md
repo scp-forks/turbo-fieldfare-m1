@@ -30,18 +30,27 @@
 >   --messages-file /tmp/m.json --max-new 96 --temperature 0
 > ```
 >
-> ### Pulling in upstream updates
+> ### 🔄 When upstream releases a new version — ONE command
 >
 > ```bash
-> git checkout macos14-support
-> git fetch upstream
-> git rebase upstream/main
+> Scripts/sync-upstream.sh
 > ```
 >
-> The delta is ~440 lines over 26 files, but most of it is 4 new self-contained
-> files plus 13 one-line import swaps. **`Package.swift` is the only file likely
-> to conflict**, and only on its platform-floor lines. Every change is
-> conditional, so this branch stays correct on macOS 26 too.
+> That is the whole thing. You do not need to remember anything else.
+>
+> It adds the `upstream` remote if missing, fetches, shows you what is new,
+> **tags a rescue point so any run is undoable**, merges, then rebuilds and
+> retests. If it hits a conflict it stops and prints the exact lines to keep.
+> It merges rather than rebases, so history is never rewritten and a plain
+> `git push origin macos14-support` works afterwards — **no `--force` ever**.
+>
+> To undo a sync completely, it prints a command like
+> `git reset --hard pre-sync-1df546a`.
+>
+> Why conflicts are rare: the delta is ~440 lines over 26 files, but most of it
+> is 4 self-contained new files plus 13 one-line import swaps. `Package.swift`
+> is the only file likely to conflict, and only on its platform-floor lines.
+> Every change is conditional, so this branch also stays correct on macOS 26.
 >
 > ---
 >

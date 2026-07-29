@@ -209,15 +209,46 @@ RUNTIME LIBRARY COMPILED OK — 44 functions
 
 ## Staying current with upstream
 
+Upstream is <https://github.com/drumih/turbo-fieldfare>, which this repository
+is a fork of.
+
 ```bash
-git remote add upstream https://github.com/drumih/turbo-fieldfare.git
-git fetch upstream
-git rebase upstream/main
+Scripts/sync-upstream.sh
 ```
 
-The delta is small and mostly additive — four new files plus localized edits.
-`Package.swift` is the only likely conflict, and only on the platform-floor
-lines.
+That is the only command needed. The script:
+
+1. Refuses to run on a dirty working tree, telling you how to stash.
+2. Switches to `macos14-support` if you are on another branch.
+3. Adds the `upstream` remote if it is missing.
+4. Fetches and lists what is new, exiting early if nothing is.
+5. Tags a rescue point (`pre-sync-<sha>`) so the run is undoable.
+6. **Merges** rather than rebases — history is never rewritten, so a plain
+   `git push origin macos14-support` works afterwards with no `--force`.
+7. Rebuilds and reruns the tests, accounting for the one known environmental
+   failure.
+
+If it stops on a conflict it names the files and prints the lines to keep. In
+`Package.swift` those are the platform floor:
+
+```swift
+platforms: [
+    .macOS(.v14),
+    .iOS(.v17),
+],
+```
+
+plus the `TurboFieldfareCompat` target entry. Take upstream's version of
+everything else in that file.
+
+If it stops because the build broke, upstream has likely adopted another
+macOS 26 API. The fix follows the pattern in the table above: query SDK-absent
+enum cases by raw value (see `MetalGPUFamilyCompat` and
+`MetalLanguageVersionCompat`) and gate new OS APIs behind `if #available`.
+
+Conflicts should be rare. The delta is mostly additive — four self-contained new
+files plus thirteen one-line import swaps. `Package.swift` is the only likely
+conflict, and only on the platform-floor lines.
 
 The cleanest long-term fix would be upstream lowering its platform floor and
 gating macOS 26 APIs behind availability checks, which is what the compat
