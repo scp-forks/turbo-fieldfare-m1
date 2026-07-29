@@ -9,6 +9,7 @@
 > | --- | --- |
 > | **Use this branch** | [`macos14-support`](../../tree/macos14-support) — the working port |
 > | **Read this doc** | **[`MACOS14.md`](../../blob/macos14-support/MACOS14.md)** — full step-by-step procedure |
+> | Upstream vetting | [`SECURITY-AUDIT.md`](../../blob/macos14-support/SECURITY-AUDIT.md) — malware/supply-chain review of all 345 upstream files |
 > | `main` | Deliberately left as pristine upstream, so upstream can be tracked cleanly. **Nothing of ours is on `main`.** |
 > | Upstream | [drumih/turbo-fieldfare](https://github.com/drumih/turbo-fieldfare) |
 >
