@@ -1,9 +1,38 @@
-# Putting your own API in front of this
+# Serving this over HTTP
 
-**Short answer: you do not have to build an inference integration.** This
-package ships `TurboFieldfareServer`, an OpenAI-compatible HTTP server. Anything
-that can speak HTTP — Go, Node, Python, an existing OpenAI SDK — can drive it as
-a normal Chat Completions endpoint.
+## The whole thing, if you are in a hurry
+
+```bash
+.build/release/TurboFieldfareServer \
+  --model scratch/gemma4.gturbo --port 8080 --queue-limit 32
+```
+
+Leave it running. Point anything at `http://127.0.0.1:8080/v1`. It speaks the
+OpenAI Chat Completions API, so existing SDKs and tools work unchanged.
+
+**You do not need to write any program to sit in front of this.** You do not
+need to manage queueing. Requests that arrive during a generation wait their turn
+and return normally.
+
+### Client applications cost you nothing
+
+To be explicit, because it is easy to get the wrong impression:
+
+- **One server process holds the model.** ~1.5 GB, once.
+- **Any number of client applications can use it concurrently.** A client is
+  anything sending HTTP — your scripts, a chat UI, an editor plugin, `curl`.
+  Clients do not load the model and add **no** memory.
+- Ten apps hitting one server still means one ~1.5 GB server.
+
+The only way to end up with two copies of the model in RAM is to run two
+programs that each *load* it — the server, the CLI, and the Mac app each do.
+Running the server and the CLI simultaneously would do that. Running the server
+and ten client apps would not.
+
+---
+
+Everything below is detail: the API surface, measured memory, LAN access, and an
+optional example of wrapping it in your own service.
 
 Everything below was verified on this fork: MacBook Pro M1 Max, macOS 14.8.3.
 
@@ -168,21 +197,49 @@ Two things to set on the client side, since waits are long by HTTP standards:
 - **Consider `stream: true`** for interactive use. Tokens arrive as they are
   produced, so the connection is not silent while you wait.
 
-## Other constraints
+## Reaching it from other machines on your LAN
 
-1. **Only one model-owning process at a time.** The server, the CLI, the Mac app,
-   and the decode service each want the model and the GPU. **This is the real
-   way to blow the memory budget** — two model owners means two resident copies.
-   Running the server *and* the CLI together roughly doubles usage. Queueing
-   inside one server does not.
-2. **No authentication and no TLS, loopback only.** Exactly why a front end is a
-   good idea — put auth, TLS, rate limiting, and logging in your layer and keep
-   the backend on `127.0.0.1`.
-3. **Model load happens at startup**, not per request. Keep the process alive; do
+This is the one thing that genuinely does not work out of the box. The bind
+address is hardcoded and there is no flag for it:
+
+```swift
+// Sources/TurboFieldfareServer/Core/HTTPServer.swift
+let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
+```
+
+`127.0.0.1` means **only this Mac can connect.** Apps on the same machine work
+fine; a phone or laptop elsewhere on the network cannot reach it at all.
+
+Upstream did this deliberately, because the server has no authentication and no
+TLS. Anything that can reach the port can use the model.
+
+Three ways to get LAN access, cheapest first:
+
+1. **SSH tunnel from the client machine** — no code changes, and stays
+   authenticated:
+   ```bash
+   ssh -N -L 8080:127.0.0.1:8080 you@this-mac.local
+   # then use http://127.0.0.1:8080/v1 on the client
+   ```
+2. **A reverse proxy** on this Mac listening on the LAN and forwarding to
+   loopback. Put a password or mTLS on the proxy. Caddy or nginx in ~5 lines.
+3. **Patch the bind address in this fork.** Small change, and it is your fork.
+   Prefer adding a `--host` flag that still defaults to `127.0.0.1` over
+   hardcoding `0.0.0.0`, so exposure is always explicit and opt-in.
+
+Whichever you pick, remember there is no auth. On a trusted home network that
+may be fine; do not put it on a network you do not control.
+
+## Other notes
+
+1. **Model load happens at startup**, not per request. Keep the process alive; do
    not spawn it per call. Spawning `TurboFieldfareCLI` per request would reload
    ~14 GB every time.
-4. **Adding concurrency in your front end will not increase throughput**, because
+2. **Adding concurrency in your own code will not increase throughput**, because
    the backend serializes regardless. It only changes where requests wait.
+3. **Do not run the server and the CLI or Mac app at the same time.** Each loads
+   its own copy of the model. This is the only realistic way to exceed the memory
+   budget.
 
 ---
 
