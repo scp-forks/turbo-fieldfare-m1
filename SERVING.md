@@ -114,24 +114,75 @@ it. The server never runs anything itself.
 
 ---
 
-## Constraints that shape your design
+## Queueing and memory — the important part
 
-Read these before building on top.
+**The server already queues requests for you.** Nothing is lost and nothing runs
+in parallel. A request that arrives while another is generating simply waits and
+then returns normally. You do not need to build a queue.
 
-1. **Requests are serialized.** One model, one GPU. Three concurrent requests
-   completed at +4s, +5s, and +6s — queued, not parallel. Adding concurrency in
-   your front end will not increase throughput.
-2. **`--queue-limit` defaults to 4.** Beyond that, requests are refused. Do your
-   own queueing or backpressure if you expect bursts.
-3. **Only one model-owning process at a time.** The server, the CLI, the Mac app,
-   and the decode service each want the model and the GPU. Do not run two.
-4. **No authentication and no TLS, loopback only.** This is exactly why a front
-   end is a good idea — put auth, TLS, rate limiting, and logging in your layer
-   and keep the backend on `127.0.0.1`.
-5. **Model load happens at startup**, not per request. Keep the process alive;
-   do not spawn it per call. (Spawning `TurboFieldfareCLI` per request would
-   reload ~14 GB each time — do not do that.)
-6. **Memory stays ~2.2 GB** regardless of generation length.
+This is also what protects the memory budget: because only one generation ever
+runs at a time, a queued request costs a pending HTTP connection and nothing
+more. It does **not** load a second copy of the model.
+
+Measured on this machine, all figures process RSS:
+
+| State | Memory |
+| --- | --- |
+| Idle, model resident | 1.08 GB |
+| 5 requests in flight (1 running, 4 queued) | 1.41 GB peak |
+| 8 requests in flight, `--queue-limit 32` | 1.46 GB peak |
+
+Queue depth barely moves memory — 5 in flight and 8 in flight differ by 50 MB.
+Generation length does not move it either; a 700-token completion peaks at the
+same ~2.2 GB footprint as an 8-token one.
+
+Timing confirms serialization rather than parallelism: three concurrent requests
+completed at +4s, +5s, and +6s — one after another.
+
+### Raise `--queue-limit` so nothing is ever refused
+
+The default is `4`, and the limit is real. Firing 6 concurrent requests at a
+default server gives five `200`s and one:
+
+```json
+{"error":{"type":"invalid_request_error","code":"queue_full",
+          "message":"generation queue is full"}}
+```
+
+returned as **HTTP 429**. With `--queue-limit 32`, eight concurrent requests all
+returned `200` with zero refusals:
+
+```bash
+.build/release/TurboFieldfareServer \
+  --model scratch/gemma4.gturbo --port 8080 --queue-limit 32
+```
+
+For single-user LAN use where waiting is fine, raise it. It costs almost nothing
+in memory and converts a refusal into a wait.
+
+Two things to set on the client side, since waits are long by HTTP standards:
+
+- **Generous client timeouts.** A queued request behind several others can take
+  minutes. Go's `http.Client` has no default timeout, which is actually what you
+  want here; if you set one, set it high.
+- **Consider `stream: true`** for interactive use. Tokens arrive as they are
+  produced, so the connection is not silent while you wait.
+
+## Other constraints
+
+1. **Only one model-owning process at a time.** The server, the CLI, the Mac app,
+   and the decode service each want the model and the GPU. **This is the real
+   way to blow the memory budget** — two model owners means two resident copies.
+   Running the server *and* the CLI together roughly doubles usage. Queueing
+   inside one server does not.
+2. **No authentication and no TLS, loopback only.** Exactly why a front end is a
+   good idea — put auth, TLS, rate limiting, and logging in your layer and keep
+   the backend on `127.0.0.1`.
+3. **Model load happens at startup**, not per request. Keep the process alive; do
+   not spawn it per call. Spawning `TurboFieldfareCLI` per request would reload
+   ~14 GB every time.
+4. **Adding concurrency in your front end will not increase throughput**, because
+   the backend serializes regardless. It only changes where requests wait.
 
 ---
 
@@ -156,8 +207,12 @@ import (
 const upstream = "http://127.0.0.1:8080/v1/chat/completions"
 const modelID = "gemma-4-26b-a4b-it"
 
-// The backend owns one model on one GPU and serves requests serially,
-// so serialize here to control queueing rather than relying on its queue.
+// The backend already queues and never runs two generations at once, so this
+// mutex is not required for correctness or for memory safety. It is here so
+// requests wait in this process instead of occupying a backend queue slot,
+// which means you can never hit the backend's queue_full 429 no matter how
+// many callers show up. Drop it if you would rather let the backend queue,
+// and raise --queue-limit instead.
 var oneAtATime sync.Mutex
 
 type msg struct {
@@ -249,11 +304,17 @@ Run it:
 
 ```bash
 # terminal 1
-.build/release/TurboFieldfareServer --model scratch/gemma4.gturbo --port 8080
+.build/release/TurboFieldfareServer \
+  --model scratch/gemma4.gturbo --port 8080 --queue-limit 32
 
 # terminal 2
 go mod init myapi && go build -o myapi . && ./myapi
 ```
+
+Because the mutex above serializes in-process, every caller waits its turn and
+returns normally — no request is ever dropped and no `429` is possible. On a LAN
+where a 30–60 second wait is acceptable, that is usually the behaviour you want.
+`http.Client` has no default timeout, so waits are not cut short.
 
 Verified output:
 
