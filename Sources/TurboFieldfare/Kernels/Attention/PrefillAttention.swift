@@ -48,9 +48,13 @@ final class PrefillAttention {
     init(context: MetalContext) throws {
         self.context = context
         self.psoCausalTiled = try context.pipeline("attention_prefill_causal_tiled")
-        self.psoFullTensorOps2DValidityV2 = context.device.supportsFamily(.apple10)
-            ? try? context.pipeline("attention_prefill_full_tensorops_2d_validity_v2")
-            : nil
+        // macOS 14 backport: `MTLGPUFamily.apple10` (M5) does not exist in this
+        // SDK, and the tensor-ops kernel it gates needs MSL 4.0 +
+        // MetalPerformancePrimitives, both macOS 26 only. On every GPU this
+        // build can target the original expression would evaluate to nil
+        // anyway, so the optional fast path is simply absent here and
+        // `encodeCausal` falls back to `attention_prefill_causal_tiled`.
+        self.psoFullTensorOps2DValidityV2 = nil
     }
 
     func encodeCausal(commandBuffer: MTLCommandBuffer,

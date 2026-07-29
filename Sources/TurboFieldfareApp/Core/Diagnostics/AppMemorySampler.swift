@@ -1,5 +1,7 @@
-import Darwin
-import Darwin.Mach
+// macOS 14 backport: see RepackAudit — this SDK does not annotate
+// `mach_task_self_` as concurrency-safe.
+@preconcurrency import Darwin
+@preconcurrency import Darwin.Mach
 import Foundation
 
 public final class AppMemorySampler: @unchecked Sendable {

@@ -3,9 +3,13 @@ import PackageDescription
 
 let package = Package(
     name: "TurboFieldfare",
+    // macOS 14 backport: upstream targets .macOS(.v26)/.iOS(.v26) for Metal 4.
+    // Building at .v26 stamps a macOS 26 deployment target onto the binaries,
+    // which dyld then refuses to load on macOS 14. Lowered to the oldest OS
+    // this checkout is expected to run on.
     platforms: [
-        .macOS(.v26),
-        .iOS(.v26),
+        .macOS(.v14),
+        .iOS(.v17),
     ],
     products: [
         .library(name: "TurboFieldfare", targets: ["TurboFieldfare"]),

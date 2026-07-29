@@ -110,8 +110,12 @@ public final class MetalContext: @unchecked Sendable {
         }
         do {
             let opts = MTLCompileOptions()
-            // The MPP prefill path requires MSL 4.0 tensor operations.
-            opts.languageVersion = .version4_0
+            // macOS 14 backport: MSL 4.0 (and the MPP tensor-ops prefill path it
+            // enables) ships with macOS 26; MSL 3.2 needs macOS 15. The ceiling
+            // at a macOS 14 deployment target is 3.1. The tensor-ops kernels are
+            // Apple10-only and unreachable on this GPU, so the baseline kernels
+            // are compiled at 3.1 instead.
+            opts.languageVersion = .version3_1
             return try device.makeLibrary(source: combined, options: opts)
         } catch {
             throw MetalError.libraryCompileFailed("\(error)")
@@ -125,7 +129,8 @@ public final class MetalContext: @unchecked Sendable {
         }
         let src = try String(contentsOf: url, encoding: .utf8)
         let opts = MTLCompileOptions()
-        opts.languageVersion = .version4_0
+        // macOS 14 backport: see note above; MSL 3.1 is the macOS 14 ceiling.
+        opts.languageVersion = .version3_1
         do {
             return try device.makeLibrary(source: src, options: opts)
         } catch {

@@ -1,6 +1,9 @@
 import Foundation
-import Darwin
-import Darwin.Mach
+// macOS 14 backport: the macOS 26 SDK marks `mach_task_self_` concurrency-safe;
+// this SDK does not, so Swift 6 rejects the direct reference in `sampleRSS`.
+// `@preconcurrency` restores the upstream call site unchanged.
+@preconcurrency import Darwin
+@preconcurrency import Darwin.Mach
 
 /// Counters tracked during a repack run. Emitted to JSON via the
 /// `--copy-audit` flag.
