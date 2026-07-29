@@ -141,13 +141,8 @@ import TurboFieldfareValidationSupport
         let context = try MetalContext()
         // Hosted CI has no Apple10 GPU, so it returns without dispatching this
         // kernel. Run this suite on Apple10 before changing the TensorOps path.
-        //
-        // macOS 14 backport: `MTLGPUFamily.apple10` does not exist in this SDK,
-        // and the TensorOps kernels are compiled out entirely at MSL 3.1 (they
-        // sit behind `#if defined(__HAVE_TENSOR__)`). No GPU this build can
-        // target is Apple10, so this case always skipped even upstream.
-        _ = context
-        return
+        // Queried by raw value so this builds against SDKs predating `.apple10`.
+        guard MetalGPUFamilyCompat.supportsApple10(context.device) else { return }
         let fixture = Self.makeFixture(start: visibleKeys - 1,
                                        chunk: 1,
                                        window: 0,
@@ -173,6 +168,7 @@ import TurboFieldfareValidationSupport
     }
 
     @Test func preferredTensorOpsPathUsesSafeHardwareFallback() throws {
+        let context = try MetalContext()
         let fixture = Self.makeFixture(start: 128,
                                        chunk: 1,
                                        window: 0,
@@ -190,12 +186,10 @@ import TurboFieldfareValidationSupport
                 "preferred TensorOps maxAbs=\(maxAbs) rel=\(rel)")
         #expect(rel <= 2e-2,
                 "preferred TensorOps rel=\(rel) maxAbs=\(maxAbs)")
-        // macOS 14 backport: upstream guards this on the GPU not being Apple10.
-        // `.apple10` is absent from this SDK and no targetable GPU reports it,
-        // so the fallback branch is the only reachable one and the comparison
-        // runs unconditionally. This is the assertion that matters here: the
-        // "preferred" TensorOps path must degrade to the baseline kernel and
-        // produce byte-identical output.
+        // Off Apple10 the preferred path must degrade to the baseline kernel and
+        // produce byte-identical output. On macOS 14 this is the branch that
+        // runs, and it is what validates the fallback this fork depends on.
+        guard !MetalGPUFamilyCompat.supportsApple10(context.device) else { return }
         let baseline = try Self.runKernel(fixture, path: .causalTiled)
         #expect(preferred == baseline)
     }
