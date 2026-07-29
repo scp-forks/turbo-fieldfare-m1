@@ -20,13 +20,54 @@
 > Gemma 4 26B-A4B generating at a **2.2 GB peak footprint**, ~14 tok/s,
 > **514 of 515 tests passing**. Full numbers in `MACOS14.md`.
 >
-> ### Quick start
+> ### Quick start — first time only
 >
 > ```bash
 > git checkout macos14-support
 > brew install swiftly && swiftly install 6.2.3 && swiftly use 6.2.3
 > swift build -c release
 > .build/release/TurboFieldfareRepack --output scratch/gemma4.gturbo --overwrite
+> ```
+>
+> ### 🚀 Normal use — run it as a local API server
+>
+> ```bash
+> .build/release/TurboFieldfareServer \
+>   --model scratch/gemma4.gturbo --port 8080 --queue-limit 32
+> ```
+>
+> Leave it running. Every app on this Mac now has a local LLM at
+> **`http://127.0.0.1:8080/v1`**, speaking the OpenAI Chat Completions API — so
+> existing OpenAI SDKs and tools work with just a base-URL change.
+>
+> ```bash
+> curl http://127.0.0.1:8080/v1/chat/completions \
+>   -H 'Content-Type: application/json' \
+>   -d '{"model":"gemma-4-26b-a4b-it",
+>        "messages":[{"role":"user","content":"What is the capital of France?"}],
+>        "temperature":0,"max_tokens":50}'
+> ```
+>
+> **The three things worth knowing:**
+>
+> 1. **One server, unlimited apps, ~1.5 GB total.** Client apps hold no model and
+>    add no memory. Ten apps hitting one server is still one ~1.5 GB server.
+> 2. **Requests queue automatically.** Only one generation runs at a time, so
+>    nothing is lost and memory never multiplies. Callers just wait their turn.
+>    `--queue-limit 32` means nothing gets refused.
+> 3. **`127.0.0.1` only** — apps on this Mac, not other devices. Also means
+>    nothing on your network can reach it, which is good, since it has no
+>    authentication.
+>
+> Do **not** run the CLI or Mac app at the same time as the server; each loads
+> its own copy of the model. That is the only way to exceed the memory budget.
+>
+> Details, the full parameter table, and an optional custom-wrapper example:
+> [`SERVING.md`](../../blob/macos14-support/SERVING.md).
+>
+> ### One-off generation instead (no server)
+>
+> ```bash
 > echo '[{"role":"user","content":"What is the capital of France?"}]' > /tmp/m.json
 > .build/release/TurboFieldfareCLI --model scratch/gemma4.gturbo \
 >   --messages-file /tmp/m.json --max-new 96 --temperature 0

@@ -19,20 +19,37 @@ and return normally.
 To be explicit, because it is easy to get the wrong impression:
 
 - **One server process holds the model.** ~1.5 GB, once.
-- **Any number of client applications can use it concurrently.** A client is
-  anything sending HTTP — your scripts, a chat UI, an editor plugin, `curl`.
-  Clients do not load the model and add **no** memory.
-- Ten apps hitting one server still means one ~1.5 GB server.
+- **Any number of client applications can use it at once.** A client is anything
+  sending HTTP — your scripts, a chat UI, an editor plugin, `curl`. Clients do
+  **not** load the model and add **no** memory.
+- Ten apps hitting one server is still one ~1.5 GB server.
 
-The only way to end up with two copies of the model in RAM is to run two
-programs that each *load* it — the server, the CLI, and the Mac app each do.
-Running the server and the CLI simultaneously would do that. Running the server
-and ten client apps would not.
+The only way to get two copies of the model in RAM is to run two programs that
+each *load* it. The server, the CLI, and the Mac app each do. So:
+
+| | Memory |
+| --- | --- |
+| 1 server + 1 app | ~1.5 GB ✅ |
+| 1 server + 10 apps | ~1.5 GB ✅ |
+| 1 server + the CLI running too | ~3 GB ❌ |
+
+That last row is the only thing to avoid, and you have to do it deliberately.
+
+### `127.0.0.1` — apps on this Mac only
+
+The server binds loopback, so every app on this machine can use it and nothing
+elsewhere on your network can. For a single-machine setup that is exactly right,
+and it is why the missing authentication does not matter.
+
+If you later want other devices to reach it, see
+[Reaching it from other machines](#reaching-it-from-other-machines-on-your-lan)
+— it needs a tunnel, a proxy, or a small patch.
 
 ---
 
-Everything below is detail: the API surface, measured memory, LAN access, and an
-optional example of wrapping it in your own service.
+Everything below is detail: the API surface, measured memory, and an optional
+example of wrapping it in your own service. **You do not need any of it to use
+the server.**
 
 Everything below was verified on this fork: MacBook Pro M1 Max, macOS 14.8.3.
 
