@@ -1,3 +1,52 @@
+> # 🍎 READ THIS FIRST — this is a fork, not upstream
+>
+> **This fork exists for one reason: to run TurboFieldfare on macOS 14 and 15.**
+> Upstream requires macOS 26 + Metal 4 + Xcode 26. This fork does not.
+>
+> ### Where everything is
+>
+> | | |
+> | --- | --- |
+> | **Use this branch** | [`macos14-support`](../../tree/macos14-support) — the working port |
+> | **Read this doc** | **[`MACOS14.md`](../../blob/macos14-support/MACOS14.md)** — full step-by-step procedure |
+> | `main` | Deliberately left as pristine upstream, so upstream can be tracked cleanly. **Nothing of ours is on `main`.** |
+> | Upstream | [drumih/turbo-fieldfare](https://github.com/drumih/turbo-fieldfare) |
+>
+> ### Verified working
+>
+> MacBook Pro **M1 Max, macOS 14.8.3**, no Xcode, no OS upgrade:
+> Gemma 4 26B-A4B generating at a **2.2 GB peak footprint**, ~14 tok/s,
+> **514 of 515 tests passing**. Full numbers in `MACOS14.md`.
+>
+> ### Quick start
+>
+> ```bash
+> git checkout macos14-support
+> brew install swiftly && swiftly install 6.2.3 && swiftly use 6.2.3
+> swift build -c release
+> .build/release/TurboFieldfareRepack --output scratch/gemma4.gturbo --overwrite
+> echo '[{"role":"user","content":"What is the capital of France?"}]' > /tmp/m.json
+> .build/release/TurboFieldfareCLI --model scratch/gemma4.gturbo \
+>   --messages-file /tmp/m.json --max-new 96 --temperature 0
+> ```
+>
+> ### Pulling in upstream updates
+>
+> ```bash
+> git checkout macos14-support
+> git fetch upstream
+> git rebase upstream/main
+> ```
+>
+> The delta is ~440 lines over 26 files, but most of it is 4 new self-contained
+> files plus 13 one-line import swaps. **`Package.swift` is the only file likely
+> to conflict**, and only on its platform-floor lines. Every change is
+> conditional, so this branch stays correct on macOS 26 too.
+>
+> ---
+>
+> *Everything below this line is the original upstream README.*
+
 <p align="center">
   <img src="docs/assets/turbofieldfare-logo-rounded.png" alt="TurboFieldfare logo: a fieldfare inside a segmented cache ring" width="280">
 </p>
