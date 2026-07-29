@@ -18,17 +18,11 @@ struct RootView: View {
                 .frame(maxHeight: .infinity)
                 .background(Color(nsColor: .windowBackgroundColor))
         }
-        .containerBackground(for: .window) {
-            LinearGradient(
-                colors: [
-                    Color(nsColor: .windowBackgroundColor),
-                    Color(nsColor: .windowBackgroundColor).mix(
-                        with: TurboFieldfareMacTheme.accentColor,
-                        by: 0.04),
-                ],
-                startPoint: .top,
-                endPoint: .bottom)
-        }
+        // macOS 14 backport: `containerBackground(for: .window)` and
+        // `Color.mix(with:by:)` both require macOS 15. The gradient is purely
+        // decorative, so on macOS 14 the window keeps the plain system
+        // background and the tinted variant is used from macOS 15 up.
+        .modifier(WindowContainerBackground())
         .tint(TurboFieldfareMacTheme.accentColor)
         .animation(.smooth(duration: 0.3), value: model.requiresModelInstallation)
         .animation(.smooth(duration: 0.25), value: model.error)

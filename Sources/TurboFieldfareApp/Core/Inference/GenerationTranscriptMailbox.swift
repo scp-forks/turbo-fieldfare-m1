@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import TurboFieldfareCompat  // macOS 14 backport: Synchronization.Mutex needs macOS 15
 
 public final class GenerationTranscriptMailbox: Sendable {
     public struct Snapshot: Sendable {

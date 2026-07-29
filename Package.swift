@@ -24,6 +24,12 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", exact: "2.99.0"),
     ],
     targets: [
+        // macOS 14 backport: provides a `Mutex` shim standing in for
+        // Synchronization.Mutex, which requires macOS 15.
+        .target(
+            name: "TurboFieldfareCompat",
+            path: "Sources/TurboFieldfareCompat"
+        ),
         .target(
             name: "TurboFieldfare",
             dependencies: [
@@ -56,7 +62,7 @@ let package = Package(
         ),
         .target(
             name: "TurboFieldfareAppCore",
-            dependencies: ["TurboFieldfare", "TurboFieldfareRepackCore", "TurboFieldfareDecodeProtocol"],
+            dependencies: ["TurboFieldfare", "TurboFieldfareRepackCore", "TurboFieldfareDecodeProtocol", "TurboFieldfareCompat"],
             path: "Sources/TurboFieldfareApp/Core",
             resources: [
                 .copy("Resources/app-prompts.json"),
@@ -80,6 +86,7 @@ let package = Package(
             name: "TurboFieldfareServerCore",
             dependencies: [
                 "TurboFieldfare",
+                "TurboFieldfareCompat",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
@@ -109,14 +116,16 @@ let package = Package(
             dependencies: ["TurboFieldfare", "TurboFieldfareValidationSupport", "TurboFieldfareRepackCore", "TurboFieldfareCLICore"],
             path: "Tests/TurboFieldfare/Core"
         ),
+        // macOS 14 backport: these test targets additionally depend on
+        // TurboFieldfareCompat for the `Mutex` shim.
         .testTarget(
             name: "TurboFieldfareRepackTests",
-            dependencies: ["TurboFieldfareRepackCore"],
+            dependencies: ["TurboFieldfareRepackCore", "TurboFieldfareCompat"],
             path: "Tests/TurboFieldfareRepack/Core"
         ),
         .testTarget(
             name: "TurboFieldfareAppCoreTests",
-            dependencies: ["TurboFieldfareAppCore", "TurboFieldfare", "TurboFieldfareRepackCore", "TurboFieldfareDecodeProtocol"],
+            dependencies: ["TurboFieldfareAppCore", "TurboFieldfare", "TurboFieldfareRepackCore", "TurboFieldfareDecodeProtocol", "TurboFieldfareCompat"],
             path: "Tests/TurboFieldfareApp/Core"
         ),
         .testTarget(

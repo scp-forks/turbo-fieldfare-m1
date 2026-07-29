@@ -1,6 +1,6 @@
 import Darwin
 import Foundation
-import Synchronization
+import TurboFieldfareCompat  // macOS 14 backport: Synchronization.Mutex needs macOS 15
 import Testing
 @testable import TurboFieldfareRepackCore
 

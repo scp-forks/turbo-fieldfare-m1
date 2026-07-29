@@ -34,7 +34,9 @@ struct StatusHUDView: View {
                     Capsule().stroke(.separator.opacity(0.5), lineWidth: 0.5)
                 }
         }
-        .gesture(WindowDragGesture())
+        // macOS 14 backport: `WindowDragGesture` requires macOS 15. Dragging the
+        // HUD is a convenience only, so it is enabled from macOS 15 up.
+        .modifier(OptionalWindowDragGesture())
     }
 
     private var rateText: String {

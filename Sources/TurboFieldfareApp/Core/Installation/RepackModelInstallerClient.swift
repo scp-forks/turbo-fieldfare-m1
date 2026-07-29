@@ -1,6 +1,6 @@
 import Foundation
 import TurboFieldfareRepackCore
-import Synchronization
+import TurboFieldfareCompat  // macOS 14 backport: Synchronization.Mutex needs macOS 15
 
 public final class RepackModelInstallerClient: AppModelInstallerClient, Sendable {
     typealias InstallRunner = @Sendable (

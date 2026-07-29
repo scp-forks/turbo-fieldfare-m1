@@ -2,7 +2,7 @@ import Foundation
 import NIOCore
 import NIOHTTP1
 import NIOPosix
-import Synchronization
+import TurboFieldfareCompat  // macOS 14 backport: Synchronization.Mutex needs macOS 15
 import TurboFieldfare
 
 public actor TurboFieldfareHTTPServer {

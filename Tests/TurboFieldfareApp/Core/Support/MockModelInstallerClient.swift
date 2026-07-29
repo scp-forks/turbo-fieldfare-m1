@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import TurboFieldfareCompat  // macOS 14 backport: Synchronization.Mutex needs macOS 15
 @testable import TurboFieldfareAppCore
 
 final class MockModelInstallerClient: AppModelInstallerClient, Sendable {

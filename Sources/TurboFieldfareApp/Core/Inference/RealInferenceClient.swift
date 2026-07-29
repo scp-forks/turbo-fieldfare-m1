@@ -1,7 +1,7 @@
 import Foundation
 import Metal
 import TurboFieldfare
-import Synchronization
+import TurboFieldfareCompat  // macOS 14 backport: Synchronization.Mutex needs macOS 15
 
 final class GenerationTaskRegistry: Sendable {
     private struct Entry: Sendable {
